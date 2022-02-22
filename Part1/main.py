@@ -19,81 +19,48 @@ edges = cv2.Canny(pic, threshold1=100, threshold2=0)
 
 
 plt.subplot(142), plt.imshow(cv2.cvtColor(edges, cv2.COLOR_GRAY2RGB)), plt.title('Canny Edge Detection')
-#Fit line
+
+
 edgePixelLocations = np.transpose(np.array(np.where(edges > 0)))
 
 imgDiagSize = math.sqrt(pic.shape[0]**2 + pic.shape[1]**2)
 
 VOTE_THRESHOLD = 2
 
-accResolutionX = 480
-accResolutionY = 90
-accumulator = np.zeros((accResolutionY, accResolutionX))
+accResolutionRho = 450
+accResolutionTheta = 90
+accumulator = np.zeros((accResolutionTheta, accResolutionRho))
 
-
-max1Votes = -1
 bestLine1 = (0, 0)
-max2Votes = -1
 bestLine2 = (0, 0)
-def updateMaxes(i, j):
-    global max1Votes, bestLine1, max2Votes, bestLine2
-    accumulator[i, j] += 1
-
-    if(accumulator[i, j]) > max1Votes:
-        # Move previous best to second best
-        if bestLine1 != (i, j):
-            max2Votes = max1Votes
-            bestLine2 = bestLine1[:]
-        # Update best
-        max1Votes = accumulator[i, j]
-        bestLine1 = (i, j)
-
-    elif(accumulator[i, j]) > max2Votes:
-        max2Votes = accumulator[i, j]
-        bestLine2 = (i, j)
 
 
 def testLines():
+    global bestLine1, bestLine2
     for point in edgePixelLocations:
-        #Iterate over 90 line angles from 0 to 2pi
-        for i in range(accResolutionY):
-            theta = i * math.pi/accResolutionY
+        #Iterate over angles from 0 to pi
+        for i in range(accResolutionTheta):
+            theta = i * math.pi / accResolutionTheta
 
-            #Iterate over 90 line distances from 0 to imgDiagSize
-            for j in range(accResolutionX):
-                rho = (j-accResolutionX//2) * 2*imgDiagSize/accResolutionX
+            #Use point and theta to calculate rho
+            rho = point[1] * math.cos(theta) + point[0] * math.sin(theta)
 
+            #Get index of this rho value in the accumulator
+            j = accResolutionRho * (rho + imgDiagSize) / (2 * imgDiagSize)
+            j = round(j)
 
-                sqrDist = squareDistanceFromLine(theta, rho, point[1], point[0])
-
-                if sqrDist < VOTE_THRESHOLD**2:
-                    #Vote for that line
-                    updateMaxes(i, j)
+            accumulator[i, j] += 1
 
     plt.subplot(143), plt.imshow(accumulator), plt.title('Rho-Theta Hough Space'), plt.xlabel("Rho Index"), plt.ylabel("Theta Index")
+    bestLine1 = np.unravel_index(accumulator.argmax(), accumulator.shape)
 
-def squareDistanceFromLine(theta, rho, pointX, pointY):
-    #If line is vertical/horizontal, exception cases
-    if theta == math.pi/2:
-        return (pointY - rho)**2
-    elif theta == 0:
-        return (pointX - rho)**2
-    elif theta == 3*math.pi/2:
-        return (pointY + rho) ** 2
-    elif theta == math.pi:
-        return (pointX + rho)**2
-    else:
-        #Get two random points on the line
-        x1 = 1
-        y1 = (rho - x1 * math.cos(theta)) / math.sin(theta)
+    #Eliminate that line and its neighbours within n?
+    n = 5
+    for k in range(n):
+        for m in range(n):
+            accumulator[bestLine1[0] - n//2 + k, bestLine1[1] - n//2 + m] = 0
 
-        x2 = 10
-        y2 = (rho - x2 * math.cos(theta)) / math.sin(theta)
-
-        distSqr = (((x2 - x1)*(y1 - pointY) - (x1 - pointX)*(y2 - y1))**2)/((x2-x1)**2 + (y2-y1)**2)
-
-        return distSqr
-
+    bestLine2 = np.unravel_index(accumulator.argmax(), accumulator.shape)
 
 
 def drawLine(img, theta, rho):
@@ -134,8 +101,6 @@ def drawLine(img, theta, rho):
             x2 = (rho - y2 * math.sin(theta)) / math.cos(theta)
 
     cv2.line(img, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 4)
-    print("dist1: ", squareDistanceFromLine(theta, rho, x1, y1))
-    print("dist2: ", squareDistanceFromLine(theta, rho, x2, y2))
 
 testLines()
 
@@ -144,17 +109,13 @@ print(bestLine2)
 
 img = edges[:]
 
-drawLine(img, bestLine1[0] * math.pi/accResolutionY, (bestLine1[1] - accResolutionX//2) * 2*imgDiagSize/accResolutionX)
-drawLine(img, bestLine2[0] * math.pi/accResolutionY, (bestLine2[1] - accResolutionX//2) * 2*imgDiagSize/accResolutionX)
+drawLine(img, bestLine1[0] * math.pi / accResolutionTheta, (bestLine1[1] - accResolutionRho // 2) * 2 * imgDiagSize / accResolutionRho)
+drawLine(img, bestLine2[0] * math.pi / accResolutionTheta, (bestLine2[1] - accResolutionRho // 2) * 2 * imgDiagSize / accResolutionRho)
 
 
 plt.subplot(144), plt.imshow(img), plt.title('Redrawn Lines')
 
 plt.show()
-
-print("total edges: ", len(edges))
-print("max votes 1: ",max1Votes)
-print("max votes 2: ",max1Votes)
 
 
 
