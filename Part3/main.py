@@ -10,8 +10,10 @@ from feature import Feature
 #e.g. des[0] is the descriptor for the first feature
 
 
-
+kpAngleAverage = []
 allDes = np.empty((0, 128))
+allkp = []
+
 imageFeatureCounts = []
 sift = cv.SIFT_create(sigma=1.6, contrastThreshold=0.04, nOctaveLayers=3)
 imageNames = listdir('png')
@@ -23,6 +25,7 @@ for imageName in imageNames:
     kp, des = sift.detectAndCompute(gray, None)
 
     allDes = np.append(allDes, des, axis=0)
+    allkp.append(kp)
     imageFeatureCounts.append(len(des))
 
 
@@ -49,7 +52,7 @@ def getClosestMatches(kp, descriptor):
     secSmallestDist = distances[secSmallest]
 
     #Ratio test: check that closest was much better than second closest
-    if smallestDist < secSmallestDist * 0.75:
+    if smallestDist < secSmallestDist * 0.85:
 
         #return image of smallest
         match = -1
@@ -58,7 +61,7 @@ def getClosestMatches(kp, descriptor):
             match += 1
             currentIdx -= imageFeatureCounts[match]
 
-        feat = Feature(smallest, match, kp.pt)
+        feat = Feature(smallest, match, kp.pt, kp.angle, kp.size)
         return feat
 
 
@@ -78,15 +81,27 @@ testVotes = np.zeros((len(imageNames)))
 featuresFound = []
 for i in range(len(imageNames)): featuresFound.append([])
 
+anglesFound = []
+for i in range(len(imageNames)): anglesFound.append([])
+
+sizesFound = []
+for i in range(len(imageNames)): sizesFound.append([])
+
 
 for i in range(len(testDes)):
     k = testKP[i]
     d = testDes[i]
     feat = getClosestMatches(k, d)
     if(feat != None):
+        # store the diff between keypoint angle of this and of kp
+        # feat has an angle in it, need to find
+
 
         testVotes[feat.imageIdx] += 1
         featuresFound[feat.imageIdx].append(feat.pos)
+
+        anglesFound[feat.imageIdx].append((allkp[feat.imageIdx]).angle - feat.angle)
+        sizesFound[feat.imageIdx].append(allkp[feat.imageIdx].size - feat.size)
 
 
 featuresNeededThreshold = 2
