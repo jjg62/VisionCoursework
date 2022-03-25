@@ -13,7 +13,7 @@ from feature import Feature
 
 allDes = np.empty((0, 128))
 imageFeatureCounts = []
-sift = cv.SIFT_create(contrastThreshold=0.01)
+sift = cv.SIFT_create(sigma=1.6, contrastThreshold=0.04, nOctaveLayers=3)
 imageNames = listdir('png')
 
 for imageName in imageNames:
@@ -70,8 +70,8 @@ testImg = cv.imread('test1/test_image_custom_1.png')
 testImgGray = cv.cvtColor(testImg, cv.COLOR_BGR2GRAY)
 testKP, testDes = sift.detectAndCompute(testImgGray, None)
 
-plt.imshow(cv.drawKeypoints(testImgGray, testKP, testImg, flags=cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS))
-plt.show()
+#plt.imshow(cv.drawKeypoints(testImgGray, testKP, testImg, flags=cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS))
+#plt.show()
 
 testVotes = np.zeros((len(imageNames)))
 
@@ -106,7 +106,6 @@ for i in range(len(featuresFound)):
     maxX = 0
     minY = 99999999999999999
     maxY = 0
-
     for featurePos in imFeatures:
         if(featurePos[0] > maxX):
             maxX = featurePos[0]
