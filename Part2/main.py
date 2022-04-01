@@ -4,85 +4,183 @@ import cv2
 import cv2 as cv
 import matplotlib.pyplot as plt
 import numpy as np
+from match import Match
 
 smallestTemplateSize = 16
 largestTemplateSize = 512
+templateShrinkRatio = 2
+
+
 numberOfSizes = 8
 numberOfRotations = 8
-gaussianKSize = 7
-pixelInterval = 4
-
-correlationThreshold = 0.85
-
-#For now, defualt image size (512x512) is the largest template size
 
 
-def normalisedCrossCorrelation(template, test):
+gaussianKSize = 5
+gaussianStd = 1
+pixelInterval = 1
 
-    testDimensions = test.shape
-    templateDimensions = template.shape
+correlationThreshold = 0.625
+
+#For now, default image size (512x512) is the largest template size
+
+def normalisedCrossCorrelation(normalisedTemplate, test, testX, testY):
+    templateDimensions = normalisedTemplate.shape
+
+    # Get subimage of test
+    testSub = test[testY:testY + templateDimensions[1], testX:(testX + templateDimensions[0])]
+
+    # Normalise Subimage
+    normalisedTestSub = (testSub - testSub.mean()) / testSub.std()
+
+    # Check correlation
+    correlation = np.dot(normalisedTestSub.flatten(), normalisedTemplate.flatten()) / (
+                templateDimensions[0] * templateDimensions[1])
+
+    return correlation
+
+def convolveNCC(template, test, instanceName):
+
+    testDimensions = (test.shape[1], test.shape[0])
+    templateDimensions = (template.shape[1], template.shape[0])
 
     normalisedTemplate = (template - template.mean()) / template.std()
 
-    maxCorrelation = -999999999
-    maxPosition = (0, 0)
+    maxCorrelation = -2
+    bestMatch = None
 
-    for y1 in range(0, testDimensions[1] - templateDimensions[1], pixelInterval):
-        for x1 in range(0, testDimensions[0] - templateDimensions[0], pixelInterval):
-            #Get subimage of test
-            testSub = test[y1:y1+templateDimensions[1], x1:(x1+templateDimensions[0])]
+    for y in range(0, testDimensions[1] - templateDimensions[1], pixelInterval):
+        for x in range(0, testDimensions[0] - templateDimensions[0], pixelInterval):
 
-            #Normalise Subimage
-            normalisedTestSub = (testSub - testSub.mean()) // testSub.std()
-            #print(testSub.std())
+            correlation = normalisedCrossCorrelation(normalisedTemplate, test, x, y)
 
-            #Check correlation
-            correlation = np.dot(normalisedTestSub.flatten(), normalisedTemplate.flatten()) / (templateDimensions[0] * templateDimensions[1])
-            if(correlation > maxCorrelation):
+            if correlation > maxCorrelation:
+                bestMatch = Match((x, y), templateDimensions, instanceName, correlation)
                 maxCorrelation = correlation
-                maxPosition = (x1, y1)
 
-    print(maxCorrelation)
-    plt.imshow(test[maxPosition[1]:maxPosition[1] + templateDimensions[1],
-               maxPosition[0]:maxPosition[0] + templateDimensions[0]])
-    plt.show()
+    print(templateDimensions[0], ":", maxCorrelation)
 
-    return maxCorrelation
-
+    print(bestMatch)
+    return bestMatch
 
 
 imageNames = listdir('training')
-#for imageName in imageNames:
+imageNames = ["011-trash.png", "016-house.png", "029-theater.png"]
 
-imageName = '016-house.png'
-
-#Read image file and convert
-temp = cv.imread('training/' + imageName)
-templateGray = cv.cvtColor(temp, cv.COLOR_BGR2GRAY)
-
-#Remove white background
-templateGray[np.where(templateGray > 250)] = 0
+allGoodMatches = []
 
 #Read test img
 testImg = cv.cvtColor(cv.imread('img.png'), cv.COLOR_BGR2GRAY)
 testImg[np.where(testImg > 250)] = 0 #Set background to black
 
-plt.imshow(cv.cvtColor(templateGray, cv.COLOR_GRAY2RGB));
-plt.show()
+multiResolutionRatio = 2
+multiResolutionLayers = 3
+multiResolutionThresholds = [0.8, 0.7, 0.6]
 
-for i in range(numberOfSizes, -1, -1):
+#Create arrays with images at each resolution
+#Starting with biggest (actual size), shrinking by 2 each time
+testImageMultiResolution = []
 
-    sizeInterval = (largestTemplateSize - smallestTemplateSize) // numberOfSizes
-    currentSize = smallestTemplateSize + sizeInterval * i
+for layer in range(multiResolutionLayers):
+    testImageMultiResolution.append(testImg)
 
-    print(currentSize)
+    testImg = cv2.GaussianBlur(testImg, (gaussianKSize, gaussianKSize), gaussianStd)
 
-    templateGray = cv2.GaussianBlur(templateGray, (gaussianKSize, gaussianKSize), 1)
-    templateGray = cv2.resize(templateGray, (currentSize, currentSize))
+    #Divide size by multiResolutionRation
+    nextSize = (testImg.shape[0] // multiResolutionRatio, testImg.shape[1] // multiResolutionRatio)
+    testImg = cv2.resize(testImg, nextSize)
 
-    normalisedCrossCorrelation(templateGray, testImg)
+
+def findBestMatch(layer, topLeft, bottomRight, size):
+    global testImageMultiResolution, templateImageMultiResolution, multiResolutionThresholds, templateShrinkRatio
+
+    # Get test and template image for this resolution
+    test = testImageMultiResolution[layer]
+    template = templateImageMultiResolution[layer]
+    threshold = multiResolutionThresholds[layer]
+
+    print("LAYER:", layer)
+
+    plt.subplot(131), plt.imshow(test)
+
+    #Crop test image to area we know template resides from previous call
+    test = test[topLeft[1]:bottomRight[1], topLeft[0]:bottomRight[0]]
+
+    plt.subplot(132), plt.imshow(test)
+
+    currentSize = largestTemplateSize
+
+    bestMatch = None
+    bestCorrelation = -2
+
+    while currentSize >= smallestTemplateSize:
+
+        #If not on the smallest resolution (we know the size), skip every size except the one we want
+
+        if size is None or size == currentSize:
+            if(size != None):
+                plt.subplot(133), plt.imshow(template)
+
+            bestMatchAtThisSize = convolveNCC(template, test, imageName)
+
+            if bestMatchAtThisSize is not None and bestMatchAtThisSize.correlation > bestCorrelation:
+                bestMatch = bestMatchAtThisSize
+                bestCorrelation = bestMatch.correlation
+
+        currentSize = currentSize // templateShrinkRatio
+
+        template = cv2.GaussianBlur(template, (gaussianKSize, gaussianKSize), gaussianStd)
+        template = cv2.resize(template, (currentSize, currentSize))
+
+    plt.show()
+
+    if bestMatch.correlation > threshold:
+        if layer == 0:
+            return bestMatch
+        else:
+            newTopLeft = ((topLeft[0] + bestMatch.pos[0]-1)*multiResolutionRatio, (topLeft[1] + bestMatch.pos[1]-1)*multiResolutionRatio)
+            newBottomRight = (newTopLeft[0] + (bestMatch.size[0] + 2)*multiResolutionRatio, newTopLeft[1] + (bestMatch.size[1] + 2)*multiResolutionRatio)
+
+            print(bestMatch.size[0]*multiResolutionRatio)
+            return findBestMatch(layer-1, newTopLeft, newBottomRight, bestMatch.size[0]*multiResolutionRatio)
+
+    print("FAILED TO GET MATCH AT LAYER", layer, "CORRELATION:", bestMatch.correlation)
+    return None
 
 
+
+# Go to higher resolution
+
+
+for imageName in imageNames:
+#imageName = "016-house.png"
+
+    print(imageName)
+    #Read image file and convert
+    temp = cv.imread('training/' + imageName)
+    templateGray = cv.cvtColor(temp, cv.COLOR_BGR2GRAY)
+
+    #Remove white background
+    templateGray[np.where(templateGray > 250)] = 0
+
+    #Generate array of different resolutions of the template image
+    templateImageMultiResolution = []
+
+    for layer in range(multiResolutionLayers):
+        templateImageMultiResolution.append(templateGray)
+
+        templateGray = cv2.GaussianBlur(templateGray, (gaussianKSize, gaussianKSize), gaussianStd)
+
+        # Divide size by multiResolutionRation
+        nextSize = (templateGray.shape[0] // multiResolutionRatio, templateGray.shape[1] // multiResolutionRatio)
+        templateGray = cv2.resize(templateGray, nextSize)
+
+    biggestResolutionSize = ((testImageMultiResolution[multiResolutionLayers-1]).shape[1], (testImageMultiResolution[multiResolutionLayers-1]).shape[0])
+    bestMatch = findBestMatch(multiResolutionLayers-1, (0,0), biggestResolutionSize, None)
+
+#Draw bounding boxes
+for match in allGoodMatches:
+    testImg = cv.rectangle(testImg, match.pos, (match.pos[0] + match.size[0], match.pos[1] + match.size[1]), (255, 0, 0), 4)
+    cv.putText(testImg, match.instanceName, (match.pos[0], match.pos[1] - 10), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
 
 
