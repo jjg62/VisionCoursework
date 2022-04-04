@@ -57,24 +57,20 @@ def convolveNCC(template, test, instanceName):
                 bestMatch = Match((x, y), templateDimensions, instanceName, correlation)
                 maxCorrelation = correlation
 
-    print(templateDimensions[0], ":", maxCorrelation)
-
-    print(bestMatch)
     return bestMatch
 
 
 imageNames = listdir('training')
-imageNames = ["011-trash.png", "016-house.png", "029-theater.png"]
 
 allGoodMatches = []
 
 #Read test img
-testImg = cv.cvtColor(cv.imread('img.png'), cv.COLOR_BGR2GRAY)
-testImg[np.where(testImg > 250)] = 0 #Set background to black
+testImg = cv.cvtColor(cv.imread('test_image_17.png'), cv.COLOR_BGR2GRAY)
+#testImg[np.where(testImg > 250)] = 0 #Set background to black
 
 multiResolutionRatio = 2
 multiResolutionLayers = 3
-multiResolutionThresholds = [0.8, 0.7, 0.6]
+multiResolutionThresholds = [0.85, 0.75, 0.7]
 
 #Create arrays with images at each resolution
 #Starting with biggest (actual size), shrinking by 2 each time
@@ -98,14 +94,12 @@ def findBestMatch(layer, topLeft, bottomRight, size):
     template = templateImageMultiResolution[layer]
     threshold = multiResolutionThresholds[layer]
 
-    print("LAYER:", layer)
-
-    plt.subplot(131), plt.imshow(test)
+    #plt.subplot(131), plt.imshow(test)
 
     #Crop test image to area we know template resides from previous call
     test = test[topLeft[1]:bottomRight[1], topLeft[0]:bottomRight[0]]
 
-    plt.subplot(132), plt.imshow(test)
+    #plt.subplot(132), plt.imshow(test)
 
     currentSize = largestTemplateSize
 
@@ -117,8 +111,6 @@ def findBestMatch(layer, topLeft, bottomRight, size):
         #If not on the smallest resolution (we know the size), skip every size except the one we want
 
         if size is None or size == currentSize:
-            if(size != None):
-                plt.subplot(133), plt.imshow(template)
 
             bestMatchAtThisSize = convolveNCC(template, test, imageName)
 
@@ -131,19 +123,18 @@ def findBestMatch(layer, topLeft, bottomRight, size):
         template = cv2.GaussianBlur(template, (gaussianKSize, gaussianKSize), gaussianStd)
         template = cv2.resize(template, (currentSize, currentSize))
 
-    plt.show()
-
     if bestMatch.correlation > threshold:
         if layer == 0:
+            #Match was found on a sub-image, need to get co-ordinates on whole image
+            bestMatch.pos = (bestMatch.pos[0] + topLeft[0], bestMatch.pos[1] + topLeft[1])
             return bestMatch
         else:
             newTopLeft = ((topLeft[0] + bestMatch.pos[0]-1)*multiResolutionRatio, (topLeft[1] + bestMatch.pos[1]-1)*multiResolutionRatio)
             newBottomRight = (newTopLeft[0] + (bestMatch.size[0] + 2)*multiResolutionRatio, newTopLeft[1] + (bestMatch.size[1] + 2)*multiResolutionRatio)
 
-            print(bestMatch.size[0]*multiResolutionRatio)
             return findBestMatch(layer-1, newTopLeft, newBottomRight, bestMatch.size[0]*multiResolutionRatio)
 
-    print("FAILED TO GET MATCH AT LAYER", layer, "CORRELATION:", bestMatch.correlation)
+    #print("FAILED TO GET MATCH AT LAYER", layer, "CORRELATION:", bestMatch.correlation)
     return None
 
 
@@ -152,7 +143,6 @@ def findBestMatch(layer, topLeft, bottomRight, size):
 
 
 for imageName in imageNames:
-#imageName = "016-house.png"
 
     print(imageName)
     #Read image file and convert
@@ -160,7 +150,7 @@ for imageName in imageNames:
     templateGray = cv.cvtColor(temp, cv.COLOR_BGR2GRAY)
 
     #Remove white background
-    templateGray[np.where(templateGray > 250)] = 0
+    #templateGray[np.where(templateGray > 250)] = 0
 
     #Generate array of different resolutions of the template image
     templateImageMultiResolution = []
@@ -174,15 +164,22 @@ for imageName in imageNames:
         nextSize = (templateGray.shape[0] // multiResolutionRatio, templateGray.shape[1] // multiResolutionRatio)
         templateGray = cv2.resize(templateGray, nextSize)
 
-    biggestResolutionSize = ((testImageMultiResolution[multiResolutionLayers-1]).shape[1], (testImageMultiResolution[multiResolutionLayers-1]).shape[0])
-    bestMatch = findBestMatch(multiResolutionLayers-1, (0,0), biggestResolutionSize, None)
+    smallestResolutionSize = ((testImageMultiResolution[multiResolutionLayers - 1]).shape[1], (testImageMultiResolution[multiResolutionLayers - 1]).shape[0])
+    bestMatch = findBestMatch(multiResolutionLayers - 1, (0,0), smallestResolutionSize, None)
+    if bestMatch is not None:
+        allGoodMatches.append(bestMatch)
+        print(len(allGoodMatches))
+
+#Get highest resolution back
+testImg = cv.cvtColor(testImageMultiResolution[0], cv.COLOR_GRAY2BGR)
 
 #Draw bounding boxes
 for match in allGoodMatches:
     testImg = cv.rectangle(testImg, match.pos, (match.pos[0] + match.size[0], match.pos[1] + match.size[1]), (255, 0, 0), 4)
     cv.putText(testImg, match.instanceName, (match.pos[0], match.pos[1] - 10), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
 
-
+plt.imshow(testImg)
+plt.show()
 
 
 
