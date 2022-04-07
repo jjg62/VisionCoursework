@@ -1,0 +1,4 @@
+trash,
+bank,
+solar-panel,
+theater,
