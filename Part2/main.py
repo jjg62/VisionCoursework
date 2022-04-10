@@ -12,7 +12,7 @@ from match import Match
 
 multiResolutionRatio = 2
 multiResolutionLayers = 3
-multiResolutionThresholds = [0.9, 0.8, 0.7]
+multiResolutionThresholds = [0.82, 0.75, 0.7]
 
 smallestTemplateSize = 16
 largestTemplateSize = 512
@@ -118,6 +118,7 @@ def findBestMatch(layer, topLeft, bottomRight, size, imageName):
     #plt.subplot(133), plt.imshow(templateUsed)
     #plt.show()
 
+    print("Layer", layer, imageName, "Correlation:", bestMatch.correlation)
     if bestMatch is not None and bestMatch.correlation > threshold:
         if layer == 0:
             #Match was found on a sub-image, need to get co-ordinates on whole image
@@ -187,7 +188,6 @@ def recognize(testImageName, showResult):
 
             if bestMatch is not None:
                 allGoodMatches.append(bestMatch)
-                print(len(allGoodMatches))
 
 
         if showResult:
@@ -202,6 +202,8 @@ def recognize(testImageName, showResult):
 
             plt.imshow(testImg)
             plt.show()
+
+        cv2.imwrite("Output/" + testImageName + ".png", testImg)
 
         return allGoodMatches
 

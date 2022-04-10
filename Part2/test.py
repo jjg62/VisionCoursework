@@ -8,9 +8,7 @@ testImageNames = listdir('scale_test')
 totalFalseNegatives = 0
 totalFalsePositives = 0
 
-for testImageName in testImageNames:
-
-    print(testImageName)
+for testImageName in testImageNames[1:]:
 
     #Read the text file containing actual labels
     actualLabels = []
@@ -20,6 +18,8 @@ for testImageName in testImageNames:
         actualLabels.append(line.partition(",")[0])
 
     startTime = time.time()
+
+    print("\nTesting file: ", testImageName)
 
     #Run the program on this test image
     matches = main.recognize(testImageName, True)
@@ -43,8 +43,10 @@ for testImageName in testImageNames:
             totalFalseNegatives += 1
             print(actual)
 
+
+    accuracy = 1 - (totalFalseNegatives + totalFalsePositives)/50
+    print("Accuracy: ", accuracy)
     print("TIME TAKEN: ", time.time() - startTime, "\n")
 
-
-print("TOTAL FALSE POSITIVES:", totalFalsePositives)
-print("TOTAL FALSE NEGATIVES:", totalFalseNegatives)
+    totalFalseNegatives = 0
+    totalFalsePositives = 0
