@@ -12,11 +12,11 @@ from match import Match
 
 multiResolutionRatio = 2
 multiResolutionLayers = 3
-multiResolutionThresholds = [0.9, 0.85, 0.7]
+multiResolutionThresholds = [0.9, 0.8, 0.7]
 
-smallestTemplateSize = 32
+smallestTemplateSize = 16
 largestTemplateSize = 512
-templateShrinkRatio = 2
+templateShrinkRatio = 1.1
 
 templateGaussianKSize = 5
 templateGaussianStd = templateShrinkRatio / math.pi
@@ -50,7 +50,7 @@ def convolveNCC(template, test, instanceName):
     testDimensions = (test.shape[1], test.shape[0])
     templateDimensions = (template.shape[1], template.shape[0])
 
-    DEBUG_NCC_MAP = np.zeros((test.shape[0] - template.shape[0], test.shape[1] - template.shape[1]))
+    #DEBUG_NCC_MAP = np.zeros((test.shape[0] - template.shape[0], test.shape[1] - template.shape[1]))
 
     normalisedTemplate = (template - template.mean()) / template.std()
 
@@ -62,7 +62,7 @@ def convolveNCC(template, test, instanceName):
 
             correlation = normalisedCrossCorrelation(normalisedTemplate, test, x, y)
 
-            DEBUG_NCC_MAP[y, x] = correlation
+            #DEBUG_NCC_MAP[y, x] = correlation
 
             if correlation > maxCorrelation:
                 bestMatch = Match((x, y), templateDimensions, instanceName, correlation)
@@ -112,8 +112,8 @@ def findBestMatch(layer, topLeft, bottomRight, size, imageName):
 
         currentSize = int(currentSize // templateShrinkRatio)
 
-        template = cv2.GaussianBlur(template, (templateGaussianKSize, templateGaussianKSize), templateGaussianStd)
-        template = cv2.resize(template, (currentSize, currentSize), interpolation=cv.INTER_NEAREST)
+        #template = cv2.GaussianBlur(template, (templateGaussianKSize, templateGaussianKSize), templateGaussianStd)
+        template = cv2.resize(template, (currentSize, currentSize), interpolation=cv.INTER_CUBIC)
 
     #plt.subplot(133), plt.imshow(templateUsed)
     #plt.show()

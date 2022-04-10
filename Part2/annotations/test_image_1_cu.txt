@@ -1,0 +1,4 @@
+gas-station,
+theater,
+trash,
+house,
