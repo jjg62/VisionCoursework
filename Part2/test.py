@@ -8,7 +8,7 @@ testImageNames = listdir('scale_test')
 totalFalseNegatives = 0
 totalFalsePositives = 0
 
-for testImageName in testImageNames[1:]:
+for testImageName in testImageNames:
 
     #Read the text file containing actual labels
     actualLabels = []

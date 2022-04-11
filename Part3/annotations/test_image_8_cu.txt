@@ -1,0 +1,4 @@
+supermarket,
+lighthouse,
+field,
+airport

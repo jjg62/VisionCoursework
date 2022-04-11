@@ -16,7 +16,7 @@ multiResolutionThresholds = [0.82, 0.75, 0.7]
 
 smallestTemplateSize = 16
 largestTemplateSize = 512
-templateShrinkRatio = 1.1
+templateShrinkRatio = 1.115
 
 templateGaussianKSize = 5
 templateGaussianStd = templateShrinkRatio / math.pi
@@ -112,13 +112,14 @@ def findBestMatch(layer, topLeft, bottomRight, size, imageName):
 
         currentSize = int(currentSize // templateShrinkRatio)
 
+
         #template = cv2.GaussianBlur(template, (templateGaussianKSize, templateGaussianKSize), templateGaussianStd)
         template = cv2.resize(template, (currentSize, currentSize), interpolation=cv.INTER_CUBIC)
 
     #plt.subplot(133), plt.imshow(templateUsed)
-    #plt.show()
 
-    print("Layer", layer, imageName, "Correlation:", bestMatch.correlation)
+    if bestMatch is not None: print("Layer", layer, imageName, "Correlation:", bestMatch.correlation)
+
     if bestMatch is not None and bestMatch.correlation > threshold:
         if layer == 0:
             #Match was found on a sub-image, need to get co-ordinates on whole image
