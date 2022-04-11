@@ -1,0 +1,4 @@
+tractor,
+bridge-1,
+water-well,
+supermarket,

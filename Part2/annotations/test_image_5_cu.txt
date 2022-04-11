@@ -1,0 +1,5 @@
+ferris-wheel,
+gas-station,
+fire-station,
+bus-stop,
+atm,
