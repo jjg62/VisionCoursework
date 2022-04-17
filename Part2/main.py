@@ -97,7 +97,7 @@ def findBestMatch(layer, topLeft, bottomRight, size, imageName):
     threshold = multiResolutionThresholds[layer]
 
 
-    #Crop test image to area we know template resides from previous call
+    #Crop test image to area we know template resides from previous
     test = test[topLeft[1]:bottomRight[1], topLeft[0]:bottomRight[0]]
 
     #Find largest template size for this resolution
@@ -138,8 +138,14 @@ def findBestMatch(layer, topLeft, bottomRight, size, imageName):
             return bestMatch
         else:
             #Find a suitable neighbouhood around the area the template was found to search in the next highest resolution
-            newTopLeft = ((topLeft[0] + bestMatch.pos[0]-1)*multiResolutionRatio, (topLeft[1] + bestMatch.pos[1]-1)*multiResolutionRatio)
-            newBottomRight = (newTopLeft[0] + (bestMatch.size[0] + 2)*multiResolutionRatio, newTopLeft[1] + (bestMatch.size[1] + 2)*multiResolutionRatio)
+            newTopLeft = (max(0, (topLeft[0] + bestMatch.pos[0]-1)*multiResolutionRatio),
+                          max(0, (topLeft[1] + bestMatch.pos[1]-1)*multiResolutionRatio))
+
+            nextResWidth = testImageMultiResolution[layer-1].shape[1]
+            nextResHeight = testImageMultiResolution[layer-1].shape[0]
+
+            newBottomRight = (min(nextResWidth - 1, newTopLeft[0] + (bestMatch.size[0] + 2)*multiResolutionRatio),
+                              min(nextResHeight - 1, newTopLeft[1] + (bestMatch.size[1] + 2)*multiResolutionRatio))
 
             #Recursively search next highest res
             return findBestMatch(layer-1, newTopLeft, newBottomRight, bestMatch.size[0]*multiResolutionRatio, imageName)
@@ -226,7 +232,7 @@ def recognize(testImageName, showResult):
 
 #--USE THIS TO TEST ON ONE IMAGE--
 #Otherwise, run test.py
-inputName = "test/test_image_1.png"
+inputName = "test/test_image_6.png"
 #Uncomment line below then run
 #recognize(inputName, True)
 

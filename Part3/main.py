@@ -86,6 +86,7 @@ def test(testImageName, show):
     featuresFound = []
     for i in range(len(imageNames)): featuresFound.append([])
 
+
     #For each feature found
     for i in range(len(testDes)):
         k = testKP[i]
@@ -95,17 +96,17 @@ def test(testImageName, show):
             testVotes[feat.imageIdx] += 1
             featuresFound[feat.imageIdx].append(feat.pos)
 
+
     outputMatchNames = []
 
     #Find names of all instances for which more than 4 features were found
     featuresNeededThreshold = 4
     for i in np.array(np.where(testVotes > featuresNeededThreshold))[0]:
         outputMatchNames.append(imageNames[i][4:-4])
-        #print(imageNames[i], testVotes[i])
 
     #Display results
     if(show):
-        #Create copy of the original imaged
+        #Create copy of the original images
         boxedIm = testImg[:]
 
         for i in range(len(featuresFound)):
@@ -143,10 +144,10 @@ def test(testImageName, show):
 
 #--USE THIS TO TEST ON ONE IMAGE--
 #Otherwise, run test.py
-inputName = "test1/test_image_1.png"
+inputName = "test2/test_image_1.png"
 #Uncomment lines below then run
 
-#train()
-#test(inputName, True)
+train()
+test(inputName, True)
 
 #(keep it commented out if using test.py)
