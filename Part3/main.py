@@ -3,51 +3,45 @@ import numpy as np
 import cv2 as cv
 import matplotlib.pyplot as plt
 from os import listdir
-from sklearn.cluster import KMeans
 from feature import Feature
 
-#Des is a 2D array - an array of 128-dimensional feature vectors
-#e.g. des[0] is the descriptor for the first feature
-
-
-kpAngleAverage = []
-
+#Database of training image descriptors / keypoints
 allDes = np.empty((0, 128))
-allkp = []
+
+#Initialise SIFT
 sift = cv.SIFT_create(contrastThreshold=0.02, nOctaveLayers=9)
-imageFeatureCounts = []
+imageFeatureCounts = [] #Keep track of how many features are in each image, such that image label can be retrieved
 imageNames = listdir('png')
 
+#Get descriptors from training images
 def train():
     global allDes, imageNames, imageFeatureCounts
 
     for imageName in imageNames:
+        #Read and convert image
         img = cv.imread('png/' + imageName)
         gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
 
+        #Get keypoints and descriptors
         kp, des = sift.detectAndCompute(gray, None)
 
+        #Add descriptors to the to database
         allDes = np.append(allDes, des, axis=0)
-        allkp.append(kp)
         imageFeatureCounts.append(len(des))
 
-
-#allDes is an array of all feature vectors (over all images)
-
-#Find vocabulary by doing KMeans on the descriptors
-#idk = KMeans(n_clusters=1000, random_state=0).fit_predict(allDes)
-
-
+#Find closest descriptor in database and apply ratio test
 def getClosestMatches(kp, descriptor, featuresFound):
-    distances = np.zeros((allDes.shape[0]))
 
+    #Find distance from each descriptor in database to this one
+    distances = np.zeros((allDes.shape[0]))
     for i in range(len(allDes)):
         distances[i] = np.linalg.norm(descriptor - allDes[i])
 
-
+    #Find smallest distance
     smallest = np.argmin(distances)
     smallestDist = distances[smallest]
 
+    #Find second smallest distance
     distances[smallest] = 999999999999
     secSmallest = np.argmin(distances)
     secSmallestDist = distances[secSmallest]
@@ -76,59 +70,49 @@ def getClosestMatches(kp, descriptor, featuresFound):
         return None
 
 
-
+#Test an input image
 def test(testImageName, show):
+    #Read and convert input image
     testImg = cv.imread(testImageName)
     testImgGray = cv.cvtColor(testImg, cv.COLOR_BGR2GRAY)
+
+    #Get keypoints and descriptors from test image
     testKP, testDes = sift.detectAndCompute(testImgGray, None)
 
-    #plt.imshow(cv.drawKeypoints(testImgGray, testKP, testImg, flags=cv.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS))
-    #plt.show()
-
+    #Number of matches found for each instance
     testVotes = np.zeros((len(imageNames)))
 
+    #Store position of features found so far to check spatial consistency
     featuresFound = []
     for i in range(len(imageNames)): featuresFound.append([])
 
-    #anglesFound = []
-    #for i in range(len(imageNames)): anglesFound.append([])
-
-    #sizesFound = []
-    #for i in range(len(imageNames)): sizesFound.append([])
-
-
+    #For each feature found
     for i in range(len(testDes)):
         k = testKP[i]
         d = testDes[i]
         feat = getClosestMatches(k, d, featuresFound)
         if(feat != None):
-            # store the diff between keypoint angle of this and of kp
-            # feat has an angle in it, need to find
-
-
             testVotes[feat.imageIdx] += 1
             featuresFound[feat.imageIdx].append(feat.pos)
 
-            #anglesFound[feat.imageIdx].append((allkp[feat.imageIdx]).angle - feat.angle)
-            #sizesFound[feat.imageIdx].append(allkp[feat.imageIdx].size - feat.size)
-
-
     outputMatchNames = []
-    featuresNeededThreshold = 4
 
+    #Find names of all instances for which more than 4 features were found
+    featuresNeededThreshold = 4
     for i in np.array(np.where(testVotes > featuresNeededThreshold))[0]:
         outputMatchNames.append(imageNames[i][4:-4])
         #print(imageNames[i], testVotes[i])
 
     #Display results
     if(show):
-
+        #Create copy of the original imaged
         boxedIm = testImg[:]
 
         for i in range(len(featuresFound)):
 
             imFeatures = featuresFound[i]
 
+            #Find top-left and bottom-right for a box that surrounds all features for this instance
             minX = 99999999999999999
             maxX = 0
             minY = 99999999999999999
@@ -147,6 +131,7 @@ def test(testImageName, show):
                     minY = featurePos[1]
 
 
+            #If the number of features pass the threshold, show the box
             if len(imFeatures) > featuresNeededThreshold:
                 boxedIm = cv.rectangle(boxedIm, (int(minX), int(minY)), (int(maxX), int(maxY)), (255, 0, 0), 4)
                 cv.putText(boxedIm, imageNames[i], (int(minX), int(minY) - 10), cv.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 0), 2)
@@ -155,3 +140,13 @@ def test(testImageName, show):
         plt.show()
 
     return outputMatchNames
+
+#--USE THIS TO TEST ON ONE IMAGE--
+#Otherwise, run test.py
+inputName = "test1/test_image_1.png"
+#Uncomment lines below then run
+
+#train()
+#test(inputName, True)
+
+#(keep it commented out if using test.py)

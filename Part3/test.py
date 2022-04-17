@@ -1,18 +1,20 @@
 import numpy as np
-
 import main
 from os import listdir
 import time
 
+#Directory names for test images an annotations
 testDirectory = "test2"
 annotationsDirectory = "annotations2"
+#Annotation folder must contain .txt files with SAME NAME as test files
 
 testImageNames = listdir(testDirectory)
 
-#Need to train first!
+#Get features from training images
 print("Training...")
 main.train()
 
+#Store FPR, TPR, ACC and time taken
 fprs = np.zeros(len(testImageNames))
 tprs = np.zeros(len(testImageNames))
 accs = np.zeros(len(testImageNames))
@@ -31,8 +33,10 @@ for name in testImageNames:
 
     startTime = time.time()
 
+    #Run the program on the test image
     foundLabels = main.test(testDirectory + "/" + name, True)
 
+    #Time taken will only be accurated when show = False
     times[i] = time.time() - startTime
 
 
@@ -57,7 +61,6 @@ for name in testImageNames:
 
     print("( TPR:", (len(actualLabels) - falseNegatives) / len(actualLabels), ")")
     tprs[i] = (len(actualLabels) - falseNegatives) / len(actualLabels)
-
     accs[i] = (len(actualLabels) - falseNegatives + (50-len(actualLabels)) - falsePositives) / 50
 
     i += 1
