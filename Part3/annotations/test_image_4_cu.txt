@@ -1,0 +1,5 @@
+ferris-wheel,
+bike,
+field,
+police,
+library,

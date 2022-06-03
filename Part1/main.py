@@ -1,13 +1,15 @@
 import math
-import matplotlib, cv2
+import cv2
 import numpy as np
 import matplotlib.pyplot as plt
 
+#-- To change input image, change this variable --
+input = 'angle/image1.png'
+#-- Run this file, then angle is outputted to console, also some images are displayed --
 
 
 #Load in and convert image
-pic = cv2.cvtColor(cv2.imread('angle/image7.png'), cv2.COLOR_BGR2GRAY)
-
+pic = cv2.cvtColor(cv2.imread(input), cv2.COLOR_BGR2GRAY)
 plt.subplot(221), plt.imshow(cv2.cvtColor(pic, cv2.COLOR_GRAY2RGB)), plt.title('Original')
 
 #Blur image to reduce effect of noise
@@ -30,6 +32,7 @@ accResolutionRho = 1000
 accResolutionTheta = 180
 accumulator = np.zeros((accResolutionTheta, accResolutionRho))
 
+#Global variables store the best lines
 bestLine1 = (0, 0)
 bestLine2 = (0, 0)
 
@@ -61,12 +64,13 @@ def houghLines():
     n = 9
     for k in range(n):
         for m in range(n):
-            accumulator[bestLine1[0] - n//2 + k] = 0
+            accumulator[min(accResolutionTheta-1, bestLine1[0] - n//2 + k)] = 0
 
     #Now get the maximum again for second line
     bestLine2 = np.unravel_index(accumulator.argmax(), accumulator.shape)
 
 
+#Find the intersection of the two best lines
 def findIntersection():
     global bestLine1, bestLine2
 
@@ -78,7 +82,6 @@ def findIntersection():
     rho2 = (bestLine2[1] * 2 * imgDiagSize / accResolutionRho) - imgDiagSize
 
     #Check exceptions first - if each line is vertical/horizontal
-
     if theta1 == 0: #Angle is 0, vertical
         if theta2 == 0: return (-1, -1) #Error - shouldn't have parallel lines
         else:
@@ -114,7 +117,7 @@ def findIntersection():
 
     return (x, y)
 
-
+#Find square of shortest distance from line
 def squareDistanceFromLine(theta, rho, pointX, pointY):
     #If line is vertical/horizontal, exception cases
     if theta == math.pi/2:
@@ -138,7 +141,7 @@ def squareDistanceFromLine(theta, rho, pointX, pointY):
 
         return distSqr
 
-#We have the parameters for the two lines, but we don't know where to measure the angle
+#When we have the parameters for the two lines, but we don't know where to measure the angle
 def ensureCorrectAngle(foundAngle):
     global bestLine1, bestLine2
 
@@ -154,7 +157,7 @@ def ensureCorrectAngle(foundAngle):
     p1 = None
     p2 = None
 
-    lineDistThreshold = 2
+    lineDistThreshold = 2 #How close a point needs to be to be on the line
     maxDistLine1 = -1
     maxDistLine2 = -1
 
@@ -221,6 +224,10 @@ def drawLine(img, theta, rho):
             x2 = (rho - y2 * math.sin(theta)) / math.cos(theta)
 
     cv2.line(img, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 4)
+
+
+
+#MAIN PROGRAM
 
 #Find 2 Best fitting lines, save them to bestLine1 and bestLine2
 houghLines()

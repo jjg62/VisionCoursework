@@ -1,0 +1,5 @@
+billboard,
+airport,
+cemetary,
+government,
+fire-station,
