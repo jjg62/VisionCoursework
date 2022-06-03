@@ -151,3 +151,4 @@ train()
 test(inputName, True)
 
 #(keep it commented out if using test.py)
+print("Please run test.py instead, or see bottom of this file to test one image!")

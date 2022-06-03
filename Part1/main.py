@@ -8,8 +8,6 @@ input = 'angle/image1.png'
 #-- Run this file, then angle is outputted to console, also some images are displayed --
 
 
-
-
 #Load in and convert image
 pic = cv2.cvtColor(cv2.imread(input), cv2.COLOR_BGR2GRAY)
 plt.subplot(221), plt.imshow(cv2.cvtColor(pic, cv2.COLOR_GRAY2RGB)), plt.title('Original')
